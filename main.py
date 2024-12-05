@@ -1,56 +1,84 @@
 import streamlit as st
 import os
-from typing import Iterator
+from typing import Iterator, List, Dict, Tuple
 import time
-from groq import Groq
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_groq import ChatGroq
 
 
-def query_groq(client: Groq, prompt: str) -> str:
-    stream = client.chat.completions.create(
-    messages=[
-        {
-            "role": "user",
-            "content": prompt,
-        }
-    ],
-    model="llama3-8b-8192",
-    stream=True
+def tuplify(history: List[Dict[str, str]]) -> List[Tuple[str, str]]:
+    return [(d['role'], d['content']) for d in history]
+
+
+def ask_question(llm: ChatGroq, history: List[Tuple[str, str]], question: str) -> str:
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", "You are a helpful assistant."),
+            MessagesPlaceholder("history"),
+            ("human", "{question}")
+        ]
     )
-    yield "Bot: "
-    for chunk in stream:
-        response = chunk.choices[0].delta.content
-        if response is not None:
-            yield response
+
+    new_prompt = prompt.invoke(
+           {
+           "history": history,
+           "question": question
+       }
+    )
+
+    response = llm.invoke(new_prompt)
+    
+    return response.content
+
+
+def stream_answer(answer: str) -> Iterator:
+    yield f"Bot: "
+    for word in answer.split():
+        yield word + " "
+        time.sleep(0.05)
 
 
 def main():
     st.sidebar.markdown("# Main App")
-
     st.write("""
     # My Second LLM App With Streamlit!!
             
     This is a simple Question & Answer app, give it a try!
     """)
 
-    messages = st.container(height=200)
-    client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+    llm = ChatGroq(
+                model="llama-3.1-70b-versatile",
+                temperature=0,
+                max_tokens=None,
+                timeout=None,
+                max_retries=2,
+            )
+    
 
-    if prompt := st.chat_input("Ask Me Something"):
-        messages.chat_message("user").write(f"You: {prompt}")
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
 
-        with st.status("Generating Response") as status:
-            try:
-                answer = query_groq(client, prompt)
-                
-            except Exception as e:
-                st.exception(e)
+    # Display chat messages from history on app rerun
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-            time.sleep(2)
-            status.update(label="Done!", state="complete", expanded=False)
-        with messages.chat_message("assistant"):
-            st.write_stream(answer)
-            
-        # st.balloons()
+    # React to user input
+    if prompt := st.chat_input("Ask me a question"):
+        # Display user message in chat message container
+        st.chat_message("user").markdown(f"Human: {prompt}")
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "human", "content": f"Human: {prompt}"})
+
+        history = tuplify(st.session_state.messages)
+        answer = ask_question(llm=llm, history=history, question=prompt)
+
+        # Display assistant response in chat message container
+        with st.chat_message("ai"):
+            st.write_stream(stream_answer(answer))
+        # Add assistant response to chat history
+        st.session_state.messages.append({"role": "ai", "content": answer})
+
 
 if __name__ == "__main__":
     main()

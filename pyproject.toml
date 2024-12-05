@@ -5,6 +5,7 @@ description = "A second LLM App"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "groq>=0.12.0",
+    "langchain-groq==0.2.1",
+    "langchain==0.3.7",
     "streamlit>=1.40.1",
 ]
