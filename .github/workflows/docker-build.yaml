@@ -10,19 +10,48 @@ on:
     - .github/workflows/docker-build.yaml
 
 jobs:
-  docker:
-    runs-on: ubuntu-latest
-    steps:
-      - name: checkout
-        uses: actions/checkout@v3
+  # docker-build:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v3
     
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+  #     - name: Login to Docker Hub
+  #       uses: docker/login-action@v3
+  #       with:
+  #         username: ${{ secrets.DOCKERHUB_USERNAME }}
+  #         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build & Push Docker
-        run: | 
-          docker build -t mdh266/mikegpt:cloudrun .
-          docker push mdh266/mikegpt:cloudrun 
+  #     - name: Build & Push Docker
+  #       run: | 
+  #         docker build -t mdh266/mikegpt:cloudrun .
+  #         docker push mdh266/mikegpt:cloudrun 
+  
+  google-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Google Cloud Auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.GOOGLE_CREDENTIALS }}'
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Set up Cloud SDK
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: Configure Docker
+        run: |
+          gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy mikegpt \
+          --image=mdh266/mikegpt:cloudrun \
+          --set-env-vars=GROQ_API_KEY=${{ secrets.GROQ_API_KEY }} \
+          --region=us-central1 \
+          --project=${{ env.PROJECT_ID }} \
+          && gcloud run services update-traffic mikegpt --to-latest
