@@ -38,7 +38,7 @@ jobs:
         uses: 'google-github-actions/auth@v2'
         with:
           credentials_json: '${{ secrets.GOOGLE_CREDENTIALS }}'
-          project_id: ${{ env.PROJECT_ID }}
+          project_id: ${{ secrets.GOOGLE_PROJECT_ID }}
 
       - name: Set up Cloud SDK
         uses: 'google-github-actions/setup-gcloud@v2'
@@ -53,5 +53,5 @@ jobs:
           --image=mdh266/mikegpt:cloudrun \
           --set-env-vars=GROQ_API_KEY=${{ secrets.GROQ_API_KEY }} \
           --region=us-central1 \
-          --project=${{ env.PROJECT_ID }} \
+          --project=${{ secrets.GOOGLE_PROJECT_ID }} \
           && gcloud run services update-traffic mikegpt --to-latest
