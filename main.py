@@ -41,7 +41,7 @@ def stream_answer(answer: str) -> Iterator:
 def main():
     st.sidebar.markdown("# Main App")
     st.write("""
-    # My Second LLM App With Streamlit!!
+    # A Simple LLM App With Streamlit!!
             
     This is a simple Question & Answer app, give it a try!
     """)
